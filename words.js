@@ -22,4 +22,6 @@ bad pacing
 MC gets random superpowers
 instant bffs
 Really hectic first episode
+null
+null
 `;
