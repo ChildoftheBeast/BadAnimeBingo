@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Bingo</title>
+  <style>
+    :root { --primary: #2563eb; --marked: #dbeafe; }
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; text-align: center; color: #1e293b; }
+    .toolbar { display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    button { padding: 0.6rem 1.1rem; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; }
+    button.secondary { background: #475569; }
+    .grid { display: grid; grid-template-columns: repeat(5, 1fr); border: 2px solid #0f172a; border-radius: 4px; overflow: hidden; }
+    .cell { aspect-ratio: 1; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; padding: 0.4rem; font-size: 0.85rem; cursor: pointer; user-select: none; word-break: break-word; }
+    .cell.marked { background: var(--marked); text-decoration: line-through; font-weight: 700; color: var(--primary); }
+  </style>
+</head>
+<body>
+
+  <h1>Bingo</h1>
+  <div class="toolbar">
+    <button onclick="rollNewCard()">Roll New Card</button>
+    <button class="secondary" onclick="copyShareLink()">Copy Card Link</button>
+  </div>
+  <div id="board" class="grid"></div>
+
+  <script>
+    let masterList = [];
+
+    // Load words.json from your GitHub Pages repo (with a fallback for testing)
+    async function init() {
+      try {
+        const res = await fetch('./words.json');
+        masterList = await res.json();
+      } catch {
+        // Fallback array if words.json isn't created yet
+        masterList = Array.from({ length: 50 }, (_, i) => `Prompt #${i}`);
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('c')) {
+        const indexes = params.get('c').split(',').map(Number);
+        renderCard(indexes);
+      } else {
+        rollNewCard();
+      }
+    }
+
+    function rollNewCard() {
+      // Create an array of all available indexes [0, 1, 2, ... N] and shuffle them
+      const allIndexes = masterList.map((_, idx) => idx);
+      for (let i = allIndexes.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allIndexes[i], allIndexes[j]] = [allIndexes[j], allIndexes[i]];
+      }
+      const pickedIndexes = allIndexes.slice(0, 24);
+
+      // Update the browser URL with the 24 indexes without reloading the page
+      const url = new URL(window.location);
+      url.searchParams.set('c', pickedIndexes.join(','));
+      window.history.replaceState({}, '', url);
+
+      renderCard(pickedIndexes);
+    }
+
+    function renderCard(indexes) {
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+      const cells = [...indexes];
+      cells.splice(12, 0, -1); // -1 represents FREE SPACE in the center
+
+      cells.forEach((wordIndex, gridPos) => {
+        const cell = document.createElement('div');
+        const isFree = wordIndex === -1;
+        cell.className = 'cell' + (isFree ? ' marked' : '');
+        cell.textContent = isFree ? 'FREE SPACE' : (masterList[wordIndex] || '???');
+        cell.onclick = () => cell.classList.toggle('marked');
+        board.appendChild(cell);
+      });
+    }
+
+    function copyShareLink() {
+      navigator.clipboard.writeText(window.location.href);
+      alert('Card link copied! Anyone who opens it will see this exact card.');
+    }
+
+    init();
+  </script>
+</body>
+</html>
