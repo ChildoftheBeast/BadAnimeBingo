@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JSON Bingo</title>
+  <title>Bingo</title>
   <style>
     :root { --primary: #2563eb; --marked: #dbeafe; }
     body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; text-align: center; color: #1e293b; }
@@ -24,17 +24,19 @@
   </div>
   <div id="board" class="grid"></div>
 
-  <script>
-    let masterList = [];
+  <!-- Load your newline-separated list from words.js -->
+  <script src="words.js"></script>
 
-    // Load words.json from your GitHub Pages repo (with a fallback for testing)
-    async function init() {
-      try {
-        const res = await fetch('./words.json');
-        masterList = await res.json();
-      } catch {
-        // Fallback array if words.json isn't created yet
-        masterList = Array.from({ length: 50 }, (_, i) => `Prompt #${i}`);
+  <script>
+    // Split by newline, trim extra spaces, and ignore empty lines
+    const masterList = (typeof RAW_WORDS !== 'undefined')
+      ? RAW_WORDS.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+      : Array.from({ length: 30 }, (_, i) => `Fallback Prompt #${i}`);
+
+    function init() {
+      if (masterList.length < 24) {
+        alert(`You need at least 24 lines in words.js (currently found ${masterList.length}).`);
+        return;
       }
 
       const params = new URLSearchParams(window.location.search);
@@ -47,7 +49,6 @@
     }
 
     function rollNewCard() {
-      // Create an array of all available indexes [0, 1, 2, ... N] and shuffle them
       const allIndexes = masterList.map((_, idx) => idx);
       for (let i = allIndexes.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -55,7 +56,6 @@
       }
       const pickedIndexes = allIndexes.slice(0, 24);
 
-      // Update the browser URL with the 24 indexes without reloading the page
       const url = new URL(window.location);
       url.searchParams.set('c', pickedIndexes.join(','));
       window.history.replaceState({}, '', url);
@@ -67,9 +67,9 @@
       const board = document.getElementById('board');
       board.innerHTML = '';
       const cells = [...indexes];
-      cells.splice(12, 0, -1); // -1 represents FREE SPACE in the center
+      cells.splice(12, 0, -1); // -1 = FREE SPACE in center
 
-      cells.forEach((wordIndex, gridPos) => {
+      cells.forEach((wordIndex) => {
         const cell = document.createElement('div');
         const isFree = wordIndex === -1;
         cell.className = 'cell' + (isFree ? ' marked' : '');
@@ -81,7 +81,7 @@
 
     function copyShareLink() {
       navigator.clipboard.writeText(window.location.href);
-      alert('Card link copied! Anyone who opens it will see this exact card.');
+      alert('Card link copied!');
     }
 
     init();
