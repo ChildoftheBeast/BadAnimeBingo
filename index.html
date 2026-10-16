@@ -5,19 +5,107 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bingo</title>
   <style>
-    :root { --primary: #2563eb; --marked: #dbeafe; }
-    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; text-align: center; color: #1e293b; }
-    .toolbar { display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
-    button { padding: 0.6rem 1.1rem; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; }
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --primary: #3b82f6;
+      --marked-bg: #1e3a8a;
+      --marked-border: #60a5fa;
+      --bingo-bg: #065f46;
+      --bingo-border: #34d399;
+      --bingo-text: #ecfdf5;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 620px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      text-align: center;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.65rem 1.2rem;
+      cursor: pointer;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: opacity 0.15s;
+    }
+
+    button:hover { opacity: 0.9; }
     button.secondary { background: #475569; }
-    .grid { display: grid; grid-template-columns: repeat(5, 1fr); border: 2px solid #0f172a; border-radius: 4px; overflow: hidden; }
-    .cell { aspect-ratio: 1; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; padding: 0.4rem; font-size: 0.85rem; cursor: pointer; user-select: none; word-break: break-word; }
-    .cell.marked { background: var(--marked); text-decoration: line-through; font-weight: 700; color: var(--primary); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      background: var(--border);
+      padding: 6px;
+      border-radius: 10px;
+    }
+
+    .cell {
+      aspect-ratio: 1;
+      background: var(--surface);
+      border: 2px solid transparent;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.4rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      user-select: none;
+      word-break: break-word;
+      transition: all 0.15s ease;
+    }
+
+    .cell:hover {
+      border-color: #64748b;
+    }
+
+    /* Standard Marked Square */
+    .cell.marked {
+      background: var(--marked-bg);
+      border-color: var(--marked-border);
+      color: #dbeafe;
+      font-weight: 600;
+    }
+
+    /* 5-in-a-Row Highlighted Square */
+    .cell.bingo {
+      background: var(--bingo-bg);
+      border-color: var(--bingo-border);
+      color: var(--bingo-text);
+      font-weight: 700;
+      box-shadow: 0 0 12px rgba(52, 211, 153, 0.25);
+    }
   </style>
 </head>
 <body>
 
-  <h1>Bingo</h1>
+  <h1>BINGO</h1>
   <div class="toolbar">
     <button onclick="rollNewCard()">Roll New Card</button>
     <button class="secondary" onclick="copyShareLink()">Copy Card Link</button>
@@ -28,10 +116,16 @@
   <script src="words.js"></script>
 
   <script>
-    // Split by newline, trim extra spaces, and ignore empty lines
     const masterList = (typeof RAW_WORDS !== 'undefined')
       ? RAW_WORDS.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
       : Array.from({ length: 30 }, (_, i) => `Fallback Prompt #${i}`);
+
+    // All 12 possible 5-in-a-row line combinations (rows, columns, diagonals)
+    const WINNING_LINES = [
+      [0, 1, 2, 3, 4],     [5, 6, 7, 8, 9],     [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24], // Rows
+      [0, 5, 10, 15, 20],  [1, 6, 11, 16, 21],  [2, 7, 12, 17, 22],   [3, 8, 13, 18, 23],   [4, 9, 14, 19, 24],   // Cols
+      [0, 6, 12, 18, 24],  [4, 8, 12, 16, 20]                                                                     // Diagonals
+    ];
 
     function init() {
       if (masterList.length < 24) {
@@ -74,8 +168,30 @@
         const isFree = wordIndex === -1;
         cell.className = 'cell' + (isFree ? ' marked' : '');
         cell.textContent = isFree ? 'FREE SPACE' : (masterList[wordIndex] || '???');
-        cell.onclick = () => cell.classList.toggle('marked');
+
+        cell.onclick = () => {
+          cell.classList.toggle('marked');
+          updateBingoHighlights();
+        };
+
         board.appendChild(cell);
+      });
+
+      updateBingoHighlights();
+    }
+
+    function updateBingoHighlights() {
+      const cellElements = Array.from(document.querySelectorAll('#board .cell'));
+
+      // Reset existing bingo highlights first in case a square was unchecked
+      cellElements.forEach(cell => cell.classList.remove('bingo'));
+
+      // Check all 12 lines and highlight any completed 5-in-a-row
+      WINNING_LINES.forEach(line => {
+        const isComplete = line.every(index => cellElements[index].classList.contains('marked'));
+        if (isComplete) {
+          line.forEach(index => cellElements[index].classList.add('bingo'));
+        }
       });
     }
 
